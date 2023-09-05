@@ -1,0 +1,103 @@
+﻿@page "/cardCreater"
+@using CardBlazor.Models
+@using Microsoft.Extensions.Configuration;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Card</PageTitle>
+
+<h2 class="fw-bold" style="color:#E0B700">New Card</h2>
+<EditForm Model="@card" class="p-3">
+
+    <div class="col-4">
+    <div class="fw-bold text-primary">Название: </div>
+    <InputTextArea id="Text" @bind-Value="card.Text" style="width:100%"></InputTextArea>
+    </div>
+    <br/>
+    <div class="text-primary fw-bold">Параметры карты: </div>
+
+    @foreach (var prop in card.properties)
+    {
+        <input class="form-check-input" type="checkbox" @bind-value="@prop.checkedValue" /> <span class="text-black fw-normal">@prop.Text</span>
+        <br />
+        @if (prop.checkedValue)
+        {
+            <p class="text-primary fw-bold" style="margin:0px -10px">от:</p>
+            <InputNumber @bind-Value="@prop.Start"></InputNumber>
+            <p class="text-primary fw-bold" style="margin:0px -10px">до:</p>
+            <InputNumber @bind-Value="@prop.End"></InputNumber>
+            <br/>
+        }
+
+    }
+    <br/>
+    <div class="submitArea">
+        <button type="submit" class="btn btn-primary" @onclick="@Submit" >Сохранить</button>
+    </div>
+
+</EditForm>
+
+<br/>
+@if(Error != "")
+{
+    <div class="p-3 m-3 text-white fw-bold" style="background: #FB3640">@Error</div>
+}
+
+
+@code {
+    [Parameter]
+    public Card card { get; set; } = new Card();
+    public int Id { get; set; }
+    private string cardList = "cardList";
+    bool added = false;
+    string Error = "";
+    //[Parameter]
+    //public  List<Card> cards { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        if(await localStorage.ContainKeyAsync(cardList))
+            Customer.getInstance().cardTypes = await localStorage.GetItemAsync<List<Card>>(cardList);
+
+        //cards = Customer.getInstance().cardTypes;
+    }
+
+    public async void Submit()
+    {
+        foreach(var prop in card.properties)
+        {
+            if((prop.checkedValue && (prop.Start == null || prop.End == null)) || card.Text == null)
+            {
+                Error = $"'{prop.Text}' не ограничен ( нет начала ОТ и ДО ) или не задано имя карточки";
+                return;
+            }
+            else if (prop.Start > prop.End)
+            {
+                Error = $"' От ' не может быть больше ' До '";
+                return;
+            }
+        }
+        int index;
+        if (await localStorage.ContainKeyAsync("index"))
+            index = await localStorage.GetItemAsync<int>("index");
+        else
+            index = 0;
+        card.Index = index;
+        await localStorage.SetItemAsync("index", ++index);
+
+        Customer.getInstance().cardTypes.Add(card);
+        List<Card> cards = Customer.getInstance().cardTypes;
+        await localStorage.SetItemAsync(cardList, cards);
+        NavigationManager.NavigateTo("levelCreater");
+
+        //await JSRuntime.InvokeVoidAsync("localStorage.setItem", cardList, cards);
+    }
+
+    public async void Clear()
+    {
+        await localStorage.ClearAsync();
+        Customer.getInstance().cardTypes.Clear();
+    }
+
+}

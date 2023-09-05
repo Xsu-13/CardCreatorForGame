@@ -1,0 +1,9 @@
+﻿.cardArea{
+    width: 100%;
+    border: dotted;
+    background-color: antiquewhite;
+    flex: auto;
+}
+.cardsChoice{
+    display: flex;
+}

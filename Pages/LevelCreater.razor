@@ -1,0 +1,195 @@
+﻿@page "/levelCreater"
+@using CardBlazor.Models;
+@using Microsoft.Extensions.Configuration;
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject IJSRuntime JSRuntime
+@using Newtonsoft.Json
+@using System.IO
+@using System.Text
+
+<PageTitle>Create Level</PageTitle>
+@*<button @onclick=@(() => modalServices.Show<Card>())*@
+
+@if(ShowForm && currentCard != null)
+{
+   <div class="card" style="background-color:#004E89">
+   <div class="card-header"><span class="text-white fw-bold">@currentCard.Text</span></div>
+   <div class="card-body border-2">
+        
+   @foreach(var prop in currentCard.properties)
+   {
+        var prop1 = prop;
+        if (prop1.checkedValue)
+        {
+                    <div class="text-white">@prop1.Text: @prop1.Value</div>
+                    <input type="range" class="form-range col-5" max="@prop1.End" min="@prop1.Start" @bind-value="@prop1.Value" @oninput="@((args) => prop1.Value = Convert.ToInt32(args.Value))" />
+        }   
+   }
+    <br/>
+    <div class="d-flex flex-row gap-1">
+        <button class="btn" @onclick="@(() => AddCurrentCard())" style="margin:10px; background: #F5AA38 ">
+                    <span class="text-light fw-bold">Добавить</span>
+        </button>
+        <button class="btn" @onclick="@Back" style="margin:10px; background: #F04A42"> <span class="text-light fw-bold">Назад</span></button>
+   </div>
+   </div>
+   </div>
+}
+
+
+    @if (cardTypes != null)
+    {
+        <div class="d-flex flex-wrap gap-3">
+        @foreach (var card in cardTypes)
+        {
+            <div class="card-body border-2" style="background-color:#A7CCED; margin: 10px">
+                <div class="card-header fw-bold" style="color: antiquewhite">@card.Text</div>
+                <div class="card-body">
+
+                @foreach(var prop in card.properties)
+                {
+
+                    @if(prop.checkedValue)
+                    {
+                            <div class="fw-bold" style="margin: 1px; color:antiquewhite ">@prop.Text: </div>
+                            <div><span class="text-light fw-bold">От: @prop.Start</span></div>
+                            <div><span class="text-light fw-bold">До: @prop.End</span></div>
+                    }
+                }
+                </div>
+                <div class="d-flex flex-row gap-1">
+                <button class="btn" style="background: #F5AA38" @onclick="@(() => SetToAdd(card))"><span class="text-light fw-bold">Добавить</span></button>
+                <button class="btn" style="background: #F04A42" @onclick="@(() => Delete(card))"> <span class="text-light fw-bold">Удалить</span></button>
+                </div>
+            </div>
+            <br/>
+           
+        }
+        </div>
+
+
+        @if(readyCards.Count != 0)
+        {
+            <h5 class="fw-bold m-3" style="color:#E0B700">Уровень: </h5>
+           <div class="d-flex flex-wrap flex-grow-0 gap-3 drag-container">
+           @foreach(var card in readyCards)
+           {
+
+                <div class="card drag-box" style="min-width: 15%; width: auto; background-color:#6B8499">
+                    <div class="fw-bold card-header" style="color:antiquewhite"> @card.Text</div>
+                    <div class="m-2">
+                    @foreach(var prop in card.properties)
+                    {
+                        if(prop.Value != 0)
+                        {
+                            <div class="text-light"><span class="fw-bold" style="color:antiquewhite">@prop.Text: </span>@prop.Value</div>
+                        }
+                    }
+                        <br />
+                        <button class="btn text-light" style="background:#F04A42" @onclick="@(() => DeleteFromLevel(card))">Удалить</button>
+                    </div>
+                    
+                </div>
+                
+           }
+           </div>
+            <br />
+            <button class="btn btn-primary" @onclick="@(() => CreateLevelJson("level"))">Сохранить уровень</button>
+            <br />
+        }
+
+        
+        
+    }
+    else
+    {
+        <div class="p-3 m-3 text-white fw-bold" style="background: #004E89">Прототипы карт еще не созданы.</div>
+    }
+
+
+
+
+@code {
+    private string cardList = "cardList";
+    private int cardCount = 5;
+    [Parameter]
+    public List<Card> cardTypes { get; set; }
+    bool ShowForm = false;
+    [Parameter]
+    public Card currentCard { get; set; }
+
+
+    [Parameter]
+    public List<ReadyCard> currentLevel { get; set; } = new List<ReadyCard>();
+
+    [Parameter]
+    public List<CardToShow> readyCards { get; set; } = new List<CardToShow>();
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        //cardTypes = await localStorage.GetItemAsync<List<Card>>(cardList);
+        //SessionValue = await localStorage.GetItemAsync<string>("test");
+        if(await localStorage.ContainKeyAsync(cardList))
+            cardTypes = await localStorage.GetItemAsync<List<Card>>(cardList);
+    }
+
+
+
+    void AddCurrentCard()
+    {
+        var card = currentCard;
+        var readyCard = card.ConvertToReady();
+        readyCard.id = card.Index;
+        readyCard.Text = card.Text;
+        currentLevel.Add(readyCard);
+
+
+        CardToShow cardToShow = new CardToShow(card.Human.Value, card.Food.Value, card.OtherSupplies.Value, card.Equipment.Value, card.Reputation.Value, card.Distance.Value, card.Radiation.Value, card.Temperature.Value);
+        cardToShow.Text = card.Text;
+        cardToShow.card = card.Index;
+        readyCards.Add(cardToShow);
+
+
+        currentCard.Clear();
+        Back();
+
+    }
+
+    void Back()
+    {
+        ShowForm = false;
+    }
+
+    void SetToAdd(Card card)
+    {
+        currentCard = card;
+        ShowForm = true;
+    }
+
+    public async void Delete(Card card)
+    {
+
+        currentCard?.Clear();
+        cardTypes.Remove(card);
+
+        Customer.getInstance().cardTypes.Remove(Customer.getInstance().cardTypes.FirstOrDefault(x => x.Index == card.Index) as Card);
+
+        await localStorage.SetItemAsync(cardList, cardTypes);
+    }
+
+    protected async void CreateLevelJson(string levelName)
+    {
+        string data = JsonConvert.SerializeObject(currentLevel);
+        byte[] byteArray = Encoding.UTF8.GetBytes(data);
+        MemoryStream stream = new MemoryStream(byteArray);
+
+        await JSRuntime.InvokeVoidAsync("downloadFileFromStream", levelName, new DotNetStreamReference(stream: stream));
+    }
+
+    void DeleteFromLevel(CardToShow card)
+    {
+        readyCards.Remove(card);
+        currentLevel.Remove(currentLevel.FirstOrDefault(x => x.id == card.card) as ReadyCard);
+    }
+}

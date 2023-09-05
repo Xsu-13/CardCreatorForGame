@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121.
+-->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>E:\CardBlazor\CardBlazor\CardBlazor\bin\Release\net6.0\browser-wasm\publish\</_PublishTargetUrl>
+    <History>True|2022-12-02T23:55:55.1103021Z;True|2022-12-03T02:53:48.6133929+03:00;True|2022-12-03T02:51:03.3992739+03:00;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>
